@@ -1,4 +1,4 @@
-# 📝 Notes App
+# 📝 Nothing Notes
 
 A beautiful and feature-rich minimalist note-taking application built with Flutter. This app combines powerful functionality with an elegant, user-friendly interface to help you capture, organize, and manage your thoughts efficiently.
 
