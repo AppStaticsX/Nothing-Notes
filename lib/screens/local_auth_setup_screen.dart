@@ -1,16 +1,27 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:notes_app/screens/home_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:pinput/pinput.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/liquid_glass_background.dart';
 
-class LocalAuthSetupScreen extends StatelessWidget {
+class LocalAuthSetupScreen extends StatefulWidget {
   const LocalAuthSetupScreen({super.key});
 
-  final int initIndex = 0;
+  @override
+  State<LocalAuthSetupScreen> createState() => _LocalAuthSetupScreenState();
+}
+
+class _LocalAuthSetupScreenState extends State<LocalAuthSetupScreen> {
+
+  int initIndex = 0;
+
+  void newPinOnSuccess() {
+    setState(() {
+      initIndex++;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,8 +71,9 @@ class LocalAuthSetupScreen extends StatelessWidget {
       body: Center(
         child: IndexedStack(
           index: initIndex,
-          children: const [
-            NewPinPage()
+          children: [
+            NewPinPage(onSuccess: newPinOnSuccess),
+            const ConfirmPinPage()
           ],
         ),
       ),
@@ -70,7 +82,13 @@ class LocalAuthSetupScreen extends StatelessWidget {
 }
 
 class NewPinPage extends StatefulWidget {
-  const NewPinPage({super.key});
+
+  final VoidCallback onSuccess;
+
+  const NewPinPage({
+    super.key,
+    required this.onSuccess
+  });
 
   @override
   State<NewPinPage> createState() => _NewPinPageState();
@@ -94,7 +112,7 @@ class _NewPinPageState extends State<NewPinPage> {
       ).showSnackBar(const SnackBar(content: Text('Invalid PIN Length')));
       return;
     } else {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => HomeScreen()));
+      widget.onSuccess();
     }
   }
 
@@ -122,7 +140,7 @@ class _NewPinPageState extends State<NewPinPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12),
                   child: Text(
                     'Please enter your PIN here to continue app lock setup.',
-                    textAlign: .center,
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 16,
                       color: theme.textColor
@@ -141,7 +159,7 @@ class _NewPinPageState extends State<NewPinPage> {
                     height: 64,
                     textStyle: TextStyle(
                       fontSize: 24,
-                      fontWeight: .bold,
+                      fontWeight: FontWeight.bold,
                       color: theme.textColor,
                     ),
                     decoration: BoxDecoration(
@@ -179,10 +197,10 @@ class ConfirmPinPage extends StatefulWidget {
   const ConfirmPinPage({super.key});
 
   @override
-  State<NewPinPage> createState() => _ConfirmPinPageState();
+  State<ConfirmPinPage> createState() => _ConfirmPinPageState();
 }
 
-class _ConfirmPinPageState extends State<NewPinPage> {
+class _ConfirmPinPageState extends State<ConfirmPinPage> {
 
   late final TextEditingController _confirmPinController;
 
@@ -221,14 +239,14 @@ class _ConfirmPinPageState extends State<NewPinPage> {
                 Icon(Icons.lock, size: 80),
                 const SizedBox(height: 36,),
                 Text(
-                  'Setup New PIN',
+                  'Confirm Your PIN',
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12),
                   child: Text(
-                    'Please enter your PIN here to continue app lock setup.',
-                    textAlign: .center,
+                    'Please enter your PIN again here to finish app lock setup.',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 16,
                         color: theme.textColor
@@ -247,7 +265,7 @@ class _ConfirmPinPageState extends State<NewPinPage> {
                     height: 64,
                     textStyle: TextStyle(
                       fontSize: 24,
-                      fontWeight: .bold,
+                      fontWeight: FontWeight.bold,
                       color: theme.textColor,
                     ),
                     decoration: BoxDecoration(
