@@ -29,6 +29,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadMarginLineOffset();
+    _loadAppLockStatus();
+  }
+
+  Future<void> _loadAppLockStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool isAppLocked = prefs.getBool('app_lock_enabled') ?? false;
+
+    setState(() {
+      _appLockEnabled = isAppLocked;
+    });
   }
 
   Future<void> _loadMarginLineOffset() async {

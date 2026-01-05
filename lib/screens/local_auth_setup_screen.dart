@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:pinput/pinput.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/theme_provider.dart';
+import '../widgets/custom_snackbar.dart';
 import '../widgets/liquid_glass_background.dart';
 
 class LocalAuthSetupScreen extends StatefulWidget {
@@ -16,10 +18,12 @@ class LocalAuthSetupScreen extends StatefulWidget {
 class _LocalAuthSetupScreenState extends State<LocalAuthSetupScreen> {
 
   int initIndex = 0;
+  String? pin;
 
-  void newPinOnSuccess() {
+  void newPinOnSuccess(String newPin) {
     setState(() {
       initIndex++;
+      pin = newPin;
     });
   }
 
@@ -73,7 +77,7 @@ class _LocalAuthSetupScreenState extends State<LocalAuthSetupScreen> {
           index: initIndex,
           children: [
             NewPinPage(onSuccess: newPinOnSuccess),
-            const ConfirmPinPage()
+            ConfirmPinPage(newPin: pin ?? '')
           ],
         ),
       ),
@@ -83,7 +87,7 @@ class _LocalAuthSetupScreenState extends State<LocalAuthSetupScreen> {
 
 class NewPinPage extends StatefulWidget {
 
-  final VoidCallback onSuccess;
+  final Function(String) onSuccess;
 
   const NewPinPage({
     super.key,
@@ -107,12 +111,14 @@ class _NewPinPageState extends State<NewPinPage> {
 
   Future<void> _validatePin() async {
     if (_newPinController.length < 4) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Invalid PIN Length')));
+      showSnackBar(
+          context,
+          'Invalid PIN Length.',
+          Severity.warning
+      );
       return;
     } else {
-      widget.onSuccess();
+      widget.onSuccess(_newPinController.text);
     }
   }
 
@@ -151,6 +157,8 @@ class _NewPinPageState extends State<NewPinPage> {
                 Pinput(
                   controller: _newPinController,
                   keyboardType: TextInputType.number,
+                  obscureText: true,
+                  obscuringCharacter: '●',
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly, // Only allows digits
                   ],
@@ -194,7 +202,13 @@ class _NewPinPageState extends State<NewPinPage> {
 }
 
 class ConfirmPinPage extends StatefulWidget {
-  const ConfirmPinPage({super.key});
+
+  final String newPin;
+
+  const ConfirmPinPage({
+    super.key,
+    required this.newPin
+  });
 
   @override
   State<ConfirmPinPage> createState() => _ConfirmPinPageState();
@@ -204,22 +218,63 @@ class _ConfirmPinPageState extends State<ConfirmPinPage> {
 
   late final TextEditingController _confirmPinController;
 
+  bool _isDisabled = true;
+
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     _confirmPinController = TextEditingController();
+    _confirmPinController.addListener(_onPinChanged);
+  }
+
+  void _onPinChanged() {
+    setState(() {
+      _isDisabled = _confirmPinController.text.length < 4;
+    });
   }
 
   Future<void> _validatePin() async {
-    if (_confirmPinController.length < 4) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Invalid PIN Length')));
+    if (_confirmPinController.text != widget.newPin) {
+      showSnackBar(
+          context,
+          'PINs do not match. Please try again.',
+          Severity.error
+      );
+      _confirmPinController.clear();
       return;
     } else {
-
+      setState(() {
+        _isDisabled = false;
+      });
     }
+  }
+
+  Future<void> _savePIN() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Save the PIN
+      await prefs.setString('user_pin', widget.newPin);
+
+      // Save app lock enabled status
+      await prefs.setBool('app_lock_enabled', true);
+
+      if (mounted) {
+        showSnackBar(context, 'App lock enabled successfully!', Severity.success);
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        showSnackBar(context, 'Failed to save PIN: ${e.toString()}', Severity.error);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _confirmPinController.removeListener(_onPinChanged);
+    _confirmPinController.dispose();
+    super.dispose();
   }
 
   @override
@@ -257,6 +312,8 @@ class _ConfirmPinPageState extends State<ConfirmPinPage> {
                 Pinput(
                   controller: _confirmPinController,
                   keyboardType: TextInputType.number,
+                  obscureText: true,
+                  obscuringCharacter: '●',
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly, // Only allows digits
                   ],
@@ -273,20 +330,24 @@ class _ConfirmPinPageState extends State<ConfirmPinPage> {
                         border: Border.all(color: theme.primaryColor, width: 3)
                     ),
                   ),
+                  onCompleted: (pin) {
+                    _validatePin();
+                  },
                 ),
                 const Spacer(),
                 OutlinedButton.icon(
-                  onPressed: () async {
-                    _validatePin();
+                  onPressed: _isDisabled ? null : () async {
+                    await _savePIN();
                   },
-                  label: Icon(Icons.arrow_forward),
+                  label: Icon(Icons.power_settings_new),
                   style: OutlinedButton.styleFrom(
                       elevation: 0,
                       shape: CircleBorder(),
                       fixedSize: Size(72, 72),
                       iconSize: 36,
-                      iconColor: theme.textColor,
-                      padding: EdgeInsets.zero
+                      iconColor: _isDisabled ? theme.secondaryTextColor : theme.textColor,
+                      padding: EdgeInsets.zero,
+                      disabledIconColor: theme.secondaryTextColor
                   ),
                 ),
                 const Spacer()
