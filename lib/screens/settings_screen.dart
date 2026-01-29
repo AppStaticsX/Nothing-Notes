@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:notes_app/screens/local_auth_setup_screen.dart';
 import 'package:notes_app/screens/lock_screen.dart';
+import 'package:notes_app/widgets/custom_snackbar.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:typethis/typethis.dart';
@@ -63,7 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               if (context.mounted) {
                 // Determine theme color for snackbar
-                final themeProvider = Provider.of<ThemeProvider>(
+                Provider.of<ThemeProvider>(
                   context,
                   listen: false,
                 );
@@ -73,13 +74,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 setState(() {
                   _appLockEnabled = false;
                 });
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('App lock disabled'),
-                    backgroundColor: themeProvider.currentAppTheme.primaryColor,
-                  ),
-                );
+                showSnackBar(context, 'App lock disabled!', Severity.warning);
               }
             },
           ),
@@ -127,22 +122,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         themeProvider.setAppFontFamily(fontName);
 
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Custom font "$fontName" loaded successfully'),
-              backgroundColor: themeProvider.currentAppTheme.primaryColor,
-            ),
-          );
+          showSnackBar(context, 'Custom font "$fontName" loaded successfully', Severity.success);
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load custom font: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showSnackBar(context, 'Failed to load custom font: $e', Severity.error);
       }
     }
   }
@@ -168,26 +153,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await settingsProvider.setFontFamily(fontName);
 
         if (context.mounted) {
-          final themeProvider = Provider.of<ThemeProvider>(
+          Provider.of<ThemeProvider>(
             context,
             listen: false,
           );
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Editor font "$fontName" loaded successfully'),
-              backgroundColor: themeProvider.currentAppTheme.primaryColor,
-            ),
-          );
+          showSnackBar(context, 'Editor font "$fontName" loaded successfully', Severity.success);
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load custom font: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showSnackBar(context, 'Failed to load custom font: $e', Severity.error);
       }
     }
   }
