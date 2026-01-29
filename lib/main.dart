@@ -10,6 +10,8 @@ import 'providers/settings_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/lock_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'widgets/app_lifecycle_manager.dart';
+import 'utils/globals.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +34,6 @@ void main() async {
   try {
     await ReminderService.instance.initialize();
   } catch (e) {
-    print('Warning: Could not initialize ReminderService: $e');
     // App can still function without reminders
   }
 
@@ -81,8 +82,6 @@ class MyApp extends StatelessWidget {
             ReminderService.instance.setReminderTriggeredCallback((
               noteId,
             ) async {
-              print('🔔 Reminder triggered for note: $noteId');
-              // Clear the reminder if it's a "once" type
               await notesProvider.clearTriggeredOnceReminder(noteId);
             });
 
@@ -96,8 +95,11 @@ class MyApp extends StatelessWidget {
             data: MediaQuery.of(
               context,
             ).copyWith(textScaler: TextScaler.noScaling),
-
             child: MaterialApp(
+              navigatorKey: navigatorKey, // Add navigatorKey
+              builder: (context, child) {
+                return AppLifecycleManager(child: child!);
+              },
               title: 'Nothing Notes',
               debugShowCheckedModeBanner: false,
               theme: themeProvider.currentTheme,

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/custom_snackbar.dart';
 import 'home_screen.dart';
+import 'lock_screen_state.dart';
 
 class LockScreen extends StatefulWidget {
   final VoidCallback? onSuccess;
@@ -24,6 +25,7 @@ class _LockScreenState extends State<LockScreen> {
   @override
   void initState() {
     super.initState();
+    LockScreenState.isShown = true;
     _loadPin();
   }
 
@@ -64,6 +66,7 @@ class _LockScreenState extends State<LockScreen> {
 
   @override
   void dispose() {
+    LockScreenState.isShown = false;
     _pinController.dispose();
     super.dispose();
   }
