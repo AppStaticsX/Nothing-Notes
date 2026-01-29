@@ -8,6 +8,7 @@ import 'providers/notes_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/home_screen.dart';
+import 'screens/lock_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
@@ -35,17 +36,28 @@ void main() async {
     // App can still function without reminders
   }
 
-  runApp(MyApp(initialTheme: initialTheme, initialFontFamily: appFontFamily));
+  // Check for app lock status
+  final isAppLocked = prefs.getBool('app_lock_enabled') ?? false;
+
+  runApp(
+    MyApp(
+      initialTheme: initialTheme,
+      initialFontFamily: appFontFamily,
+      isAppLocked: isAppLocked,
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   final AppTheme initialTheme;
   final String initialFontFamily;
+  final bool isAppLocked;
 
   const MyApp({
     super.key,
     required this.initialTheme,
     required this.initialFontFamily,
+    required this.isAppLocked,
   });
 
   @override
@@ -81,15 +93,15 @@ class MyApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
           return MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.noScaling,
-              ),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.noScaling),
 
-              child: MaterialApp(
+            child: MaterialApp(
               title: 'Nothing Notes',
               debugShowCheckedModeBanner: false,
               theme: themeProvider.currentTheme,
-              home: const HomeScreen(),
+              home: isAppLocked ? const LockScreen() : const HomeScreen(),
 
               localizationsDelegates: const [
                 GlobalMaterialLocalizations.delegate,
@@ -98,7 +110,7 @@ class MyApp extends StatelessWidget {
                 quill.FlutterQuillLocalizations.delegate,
               ],
               supportedLocales: const [Locale('en', 'US')],
-            )
+            ),
           );
         },
       ),

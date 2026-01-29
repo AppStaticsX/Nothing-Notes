@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
-import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -201,10 +200,12 @@ $plainText
     if (result == 'share_file') {
       // Share the actual file (PDF/TXT/MD)
       try {
-        await Share.shareXFiles(
-          [XFile(filePath)],
-          subject: 'Exported Note - $format',
-          text: 'Here\'s my exported note',
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(filePath)],
+            subject: 'Exported Note - $format',
+            text: 'Here\'s my exported note',
+          ),
         );
       } catch (e) {
         if (context.mounted) {
@@ -339,7 +340,6 @@ $markdown
   static String _convertToMarkdown(quill.Document document) {
     final buffer = StringBuffer();
     final delta = document.toDelta();
-    bool inList = false;
 
     for (final op in delta.toList()) {
       if (op.data is String) {
@@ -356,18 +356,13 @@ $markdown
           // Handle lists
           if (attributes['list'] == 'bullet') {
             buffer.write('- ');
-            inList = true;
           } else if (attributes['list'] == 'ordered') {
             buffer.write('1. ');
-            inList = true;
           } else if (attributes['list'] == 'checked') {
             buffer.write('- [x] ');
-            inList = true;
           } else if (attributes['list'] == 'unchecked') {
             buffer.write('- [ ] ');
-            inList = true;
           } else {
-            inList = false;
           }
 
           // Handle text formatting

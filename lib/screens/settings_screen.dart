@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:notes_app/screens/local_auth_setup_screen.dart';
+import 'package:notes_app/screens/lock_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:typethis/typethis.dart';
@@ -36,9 +37,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     bool isAppLocked = prefs.getBool('app_lock_enabled') ?? false;
 
+    if (!mounted) return;
+
     setState(() {
       _appLockEnabled = isAppLocked;
     });
+  }
+
+  void _handleAppLockToggle(bool enable) {
+    if (enable) {
+      // Enable: Go to setup logic
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const LocalAuthSetupScreen()),
+      ).then((_) => _loadAppLockStatus());
+    } else {
+      // Disable: Verify PIN first
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LockScreen(
+            onSuccess: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('app_lock_enabled', false);
+
+              if (context.mounted) {
+                // Determine theme color for snackbar
+                final themeProvider = Provider.of<ThemeProvider>(
+                  context,
+                  listen: false,
+                );
+
+                Navigator.pop(context); // Close LockScreen
+
+                setState(() {
+                  _appLockEnabled = false;
+                });
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('App lock disabled'),
+                    backgroundColor: themeProvider.currentAppTheme.primaryColor,
+                  ),
+                );
+              }
+            },
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _loadMarginLineOffset() async {
@@ -56,7 +103,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  Future<void> _pickCustomFont(BuildContext context, ThemeProvider themeProvider, SettingsProvider settingsProvider) async {
+  Future<void> _pickCustomFont(
+    BuildContext context,
+    ThemeProvider themeProvider,
+    SettingsProvider settingsProvider,
+  ) async {
     try {
       // Use file_picker to select a font file
       final result = await FilePicker.platform.pickFiles(
@@ -66,7 +117,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (result != null && result.files.single.path != null) {
         final fontPath = result.files.single.path!;
-        final fontName = result.files.single.name.replaceAll(RegExp(r'\.(ttf|otf)$'), '');
+        final fontName = result.files.single.name.replaceAll(
+          RegExp(r'\.(ttf|otf)$'),
+          '',
+        );
 
         // Load the custom font
         await settingsProvider.loadCustomFont(fontPath, fontName);
@@ -93,7 +147,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _pickEditorCustomFont(BuildContext context, SettingsProvider settingsProvider) async {
+  Future<void> _pickEditorCustomFont(
+    BuildContext context,
+    SettingsProvider settingsProvider,
+  ) async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -102,13 +159,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (result != null && result.files.single.path != null) {
         final fontPath = result.files.single.path!;
-        final fontName = result.files.single.name.replaceAll(RegExp(r'\.(ttf|otf)$'), '');
+        final fontName = result.files.single.name.replaceAll(
+          RegExp(r'\.(ttf|otf)$'),
+          '',
+        );
 
         await settingsProvider.loadCustomFont(fontPath, fontName);
         await settingsProvider.setFontFamily(fontName);
 
         if (context.mounted) {
-          final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+          final themeProvider = Provider.of<ThemeProvider>(
+            context,
+            listen: false,
+          );
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Editor font "$fontName" loaded successfully'),
@@ -128,7 +191,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -164,22 +226,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             Text(
               'Customize your writing experience',
-              style: TextStyle(
-                color: theme.secondaryTextColor,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: theme.secondaryTextColor, fontSize: 14),
             ),
           ],
         ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 20.0),
-            child: Icon(CupertinoIcons.settings, color: theme.primaryColor, size: 32),
+            child: Icon(
+              CupertinoIcons.settings,
+              color: theme.primaryColor,
+              size: 32,
+            ),
           ),
         ],
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(16.0),
-          child: const SizedBox()
+          child: const SizedBox(),
         ),
       ),
       body: SafeArea(
@@ -206,7 +269,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.text_fields,
                   iconColor: theme.primaryColor,
                   title: 'Typography',
-                  subtitle: 'Customize fonts and text sizes for better readability',
+                  subtitle:
+                      'Customize fonts and text sizes for better readability',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -220,7 +284,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      _buildAppFontFamilyOptions(theme, themeProvider, settingsProvider, context),
+                      _buildAppFontFamilyOptions(
+                        theme,
+                        themeProvider,
+                        settingsProvider,
+                        context,
+                      ),
                       const SizedBox(height: 24),
                       Text(
                         'Editor Text Size',
@@ -274,7 +343,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 24),
                       _buildEditorStylePreview(theme, settingsProvider),
                       // Only show line opacity if editor style is not plain
-                      if (settingsProvider.editorStyle != EditorStyle.plain) ...[
+                      if (settingsProvider.editorStyle !=
+                          EditorStyle.plain) ...[
                         const SizedBox(height: 24),
                         Text(
                           'Line Opacity - ${(settingsProvider.lineOpacity * 100).toInt()}%',
@@ -292,7 +362,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                              'Margin Line Offset: ${_marginLineOffset.toStringAsFixed(0)}',
+                            'Margin Line Offset: ${_marginLineOffset.toStringAsFixed(0)}',
                             style: TextStyle(
                               color: theme.textColor,
                               fontSize: 16,
@@ -306,23 +376,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 child: SliderTheme(
                                   data: SliderTheme.of(context).copyWith(
                                     // Thumb customization
-                                    thumbShape: RoundSliderThumbShape(enabledThumbRadius: 12.0),
+                                    thumbShape: RoundSliderThumbShape(
+                                      enabledThumbRadius: 12.0,
+                                    ),
                                     thumbColor: theme.primaryColor,
 
                                     // Track customization
                                     trackShape: RoundedRectSliderTrackShape(),
                                     trackHeight: 4.0,
                                     activeTrackColor: theme.primaryColor,
-                                    inactiveTrackColor: theme.secondaryTextColor.withValues(alpha: 0.5),
+                                    inactiveTrackColor: theme.secondaryTextColor
+                                        .withValues(alpha: 0.5),
 
                                     // Overlay (the ripple when pressed)
-                                    overlayShape: RoundSliderOverlayShape(overlayRadius: 24.0),
-                                    overlayColor: theme.primaryColor.withValues(alpha: 0.2),
+                                    overlayShape: RoundSliderOverlayShape(
+                                      overlayRadius: 24.0,
+                                    ),
+                                    overlayColor: theme.primaryColor.withValues(
+                                      alpha: 0.2,
+                                    ),
 
                                     // Value indicator (the label)
-                                    valueIndicatorShape: PaddleSliderValueIndicatorShape(),
+                                    valueIndicatorShape:
+                                        PaddleSliderValueIndicatorShape(),
                                     valueIndicatorColor: theme.primaryColor,
-                                    valueIndicatorTextStyle: TextStyle(color: theme.textColor),
+                                    valueIndicatorTextStyle: TextStyle(
+                                      color: theme.textColor,
+                                    ),
                                   ),
                                   child: Slider(
                                     value: _marginLineOffset,
@@ -338,54 +418,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                               Icon(Iconsax.add_copy),
                             ],
-                          )
+                          ),
                         ],
-                      )
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 24),
                 _buildSection(
-                    theme: theme,
-                    icon: Iconsax.lock,
-                    iconColor: theme.primaryColor,
-                    title: 'Security & Privacy',
-                    subtitle: 'Protect your personal notes',
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 12),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(context,
-                              MaterialPageRoute(builder: (context) => LocalAuthSetupScreen())
-                            );
-                          },
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Enable App Lock',
-                                style: TextStyle(
-                                  color: theme.textColor,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                  theme: theme,
+                  icon: Iconsax.lock,
+                  iconColor: theme.primaryColor,
+                  title: 'Security & Privacy',
+                  subtitle: 'Protect your personal notes',
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      GestureDetector(
+                        onTap: () {
+                          _handleAppLockToggle(!_appLockEnabled);
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Enable App Lock',
+                              style: TextStyle(
+                                color: theme.textColor,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
                               ),
-                              Switch(
-                                value: _appLockEnabled,
-                                onChanged: (bool value) {
-                                  if (!_appLockEnabled) {
-                                    Navigator.push(context,
-                                        MaterialPageRoute(builder: (context) => LocalAuthSetupScreen())
-                                    );
-                                  }
-                                }
-                              )
-                            ],
-                          ),
+                            ),
+                            Switch(
+                              value: _appLockEnabled,
+                              onChanged: (bool value) {
+                                _handleAppLockToggle(value);
+                              },
+                            ),
+                          ],
                         ),
-                      ],
-                    )
+                      ),
+                    ],
+                  ),
                 ),
 
                 const SizedBox(height: 32),
@@ -412,7 +486,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               fontSize: 14,
                             ),
                           ),
-                          SvgPicture.asset('assets/icons/flutter-svgrepo-com.svg', width: 16, height: 16),
+                          SvgPicture.asset(
+                            'assets/icons/flutter-svgrepo-com.svg',
+                            width: 16,
+                            height: 16,
+                          ),
                           Text(
                             ' for thoughtful writing',
                             style: TextStyle(
@@ -472,10 +550,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: TextStyle(
-              color: theme.secondaryTextColor,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: theme.secondaryTextColor, fontSize: 14),
           ),
           child,
         ],
@@ -508,7 +583,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: theme.backgroundColor,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isSelected ? theme.primaryColor : theme.secondaryTextColor.withValues(alpha: 0.3),
+                color: isSelected
+                    ? theme.primaryColor
+                    : theme.secondaryTextColor.withValues(alpha: 0.3),
                 width: isSelected ? 3 : 1,
               ),
             ),
@@ -535,7 +612,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: color,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: theme.secondaryTextColor.withValues(alpha: 0.2),
+                          color: theme.secondaryTextColor.withValues(
+                            alpha: 0.2,
+                          ),
                           width: 1,
                         ),
                       ),
@@ -550,9 +629,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildAppFontFamilyOptions(AppTheme theme, ThemeProvider themeProvider, SettingsProvider settingsProvider, BuildContext context) {
+  Widget _buildAppFontFamilyOptions(
+    AppTheme theme,
+    ThemeProvider themeProvider,
+    SettingsProvider settingsProvider,
+    BuildContext context,
+  ) {
     final customFontName = settingsProvider.customFontName;
-    final isCustomFontSelected = customFontName != null && customFontName == themeProvider.appFontFamily;
+    final isCustomFontSelected =
+        customFontName != null && customFontName == themeProvider.appFontFamily;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -567,12 +652,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () => themeProvider.setAppFontFamily(family),
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: isSelected ? theme.primaryColor : theme.backgroundColor,
+                    color: isSelected
+                        ? theme.primaryColor
+                        : theme.backgroundColor,
                     borderRadius: BorderRadius.circular(100),
                     border: Border.all(
-                      color: isSelected ? theme.primaryColor : theme.secondaryTextColor.withValues(alpha: 0.3),
+                      color: isSelected
+                          ? theme.primaryColor
+                          : theme.secondaryTextColor.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Text(
@@ -588,15 +680,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             }),
             InkWell(
-              onTap: () => _pickCustomFont(context, themeProvider, settingsProvider),
+              onTap: () =>
+                  _pickCustomFont(context, themeProvider, settingsProvider),
               borderRadius: BorderRadius.circular(20),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
-                  color: isCustomFontSelected ? theme.primaryColor : theme.backgroundColor,
+                  color: isCustomFontSelected
+                      ? theme.primaryColor
+                      : theme.backgroundColor,
                   borderRadius: BorderRadius.circular(100),
                   border: Border.all(
-                    color: isCustomFontSelected ? theme.primaryColor : theme.primaryColor.withValues(alpha: 0.5),
+                    color: isCustomFontSelected
+                        ? theme.primaryColor
+                        : theme.primaryColor.withValues(alpha: 0.5),
                     width: isCustomFontSelected ? 1 : 2,
                   ),
                 ),
@@ -604,15 +704,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      isCustomFontSelected ? Iconsax.tick_circle : Iconsax.add_copy,
-                      color: isCustomFontSelected ? Colors.white : theme.primaryColor,
+                      isCustomFontSelected
+                          ? Iconsax.tick_circle
+                          : Iconsax.add_copy,
+                      color: isCustomFontSelected
+                          ? Colors.white
+                          : theme.primaryColor,
                       size: 16,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       isCustomFontSelected ? customFontName : 'Custom Font',
                       style: TextStyle(
-                        color: isCustomFontSelected ? Colors.white : theme.primaryColor,
+                        color: isCustomFontSelected
+                            ? Colors.white
+                            : theme.primaryColor,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -627,7 +733,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildFontSizeOptions(AppTheme theme, SettingsProvider settingsProvider) {
+  Widget _buildFontSizeOptions(
+    AppTheme theme,
+    SettingsProvider settingsProvider,
+  ) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -642,7 +751,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: isSelected ? theme.primaryColor : theme.backgroundColor,
               borderRadius: BorderRadius.circular(100),
               border: Border.all(
-                color: isSelected ? theme.primaryColor : theme.secondaryTextColor.withValues(alpha: 0.3),
+                color: isSelected
+                    ? theme.primaryColor
+                    : theme.secondaryTextColor.withValues(alpha: 0.3),
               ),
             ),
             child: Text(
@@ -659,9 +770,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildFontFamilyOptions(AppTheme theme, SettingsProvider settingsProvider) {
+  Widget _buildFontFamilyOptions(
+    AppTheme theme,
+    SettingsProvider settingsProvider,
+  ) {
     final customFontName = settingsProvider.customFontName;
-    final isCustomFontSelected = customFontName != null && customFontName == settingsProvider.fontFamily;
+    final isCustomFontSelected =
+        customFontName != null && customFontName == settingsProvider.fontFamily;
 
     return Wrap(
       spacing: 8,
@@ -678,7 +793,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: isSelected ? theme.primaryColor : theme.backgroundColor,
                 borderRadius: BorderRadius.circular(100),
                 border: Border.all(
-                  color: isSelected ? theme.primaryColor : theme.secondaryTextColor.withValues(alpha: 0.3),
+                  color: isSelected
+                      ? theme.primaryColor
+                      : theme.secondaryTextColor.withValues(alpha: 0.3),
                 ),
               ),
               child: Text(
@@ -700,10 +817,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
-                color: isCustomFontSelected ? theme.primaryColor : theme.backgroundColor,
+                color: isCustomFontSelected
+                    ? theme.primaryColor
+                    : theme.backgroundColor,
                 borderRadius: BorderRadius.circular(100),
                 border: Border.all(
-                  color: isCustomFontSelected ? theme.primaryColor : theme.primaryColor.withValues(alpha: 0.5),
+                  color: isCustomFontSelected
+                      ? theme.primaryColor
+                      : theme.primaryColor.withValues(alpha: 0.5),
                   width: isCustomFontSelected ? 1 : 2,
                 ),
               ),
@@ -711,15 +832,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    isCustomFontSelected ? Iconsax.tick_circle : Iconsax.add_copy,
-                    color: isCustomFontSelected ? Colors.white : theme.primaryColor,
+                    isCustomFontSelected
+                        ? Iconsax.tick_circle
+                        : Iconsax.add_copy,
+                    color: isCustomFontSelected
+                        ? Colors.white
+                        : theme.primaryColor,
                     size: 16,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     isCustomFontSelected ? customFontName : 'Custom Font',
                     style: TextStyle(
-                      color: isCustomFontSelected ? Colors.white : theme.primaryColor,
+                      color: isCustomFontSelected
+                          ? Colors.white
+                          : theme.primaryColor,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -754,7 +881,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 8),
           TypeThis(
-            key: ValueKey('${settingsProvider.fontFamily}_${settingsProvider.fontSize}_${theme.textColor}'),
+            key: ValueKey(
+              '${settingsProvider.fontFamily}_${settingsProvider.fontSize}_${theme.textColor}',
+            ),
             string: 'The quick brown fox jumps over the lazy dog.',
             speed: 150,
             style: TextStyle(
@@ -768,7 +897,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildEditorStyleOptions(AppTheme theme, SettingsProvider settingsProvider) {
+  Widget _buildEditorStyleOptions(
+    AppTheme theme,
+    SettingsProvider settingsProvider,
+  ) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -783,7 +915,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: isSelected ? theme.primaryColor : theme.backgroundColor,
               borderRadius: BorderRadius.circular(100),
               border: Border.all(
-                color: isSelected ? theme.primaryColor : theme.secondaryTextColor.withValues(alpha: 0.3),
+                color: isSelected
+                    ? theme.primaryColor
+                    : theme.secondaryTextColor.withValues(alpha: 0.3),
               ),
             ),
             child: Text(
@@ -800,7 +934,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildEditorStylePreview(AppTheme theme, SettingsProvider settingsProvider) {
+  Widget _buildEditorStylePreview(
+    AppTheme theme,
+    SettingsProvider settingsProvider,
+  ) {
     return Container(
       width: double.infinity,
       height: 120,
@@ -823,23 +960,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 8),
           Expanded(
             child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
               child: CustomPaint(
                 painter: EditorStylePainter(
                   style: settingsProvider.editorStyle,
-                  lineColor: theme.secondaryTextColor.withValues(alpha: settingsProvider.lineOpacity),
+                  lineColor: theme.secondaryTextColor.withValues(
+                    alpha: settingsProvider.lineOpacity,
+                  ),
                 ),
                 child: Center(
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 30.0),
                     child: Text(
                       '${settingsProvider.editorStyle.displayName} grid',
-                      style: TextStyle(
-                        color: theme.textColor,
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: theme.textColor, fontSize: 14),
                     ),
                   ),
                 ),
@@ -851,12 +985,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildLineOpacityOptions(AppTheme theme, SettingsProvider settingsProvider) {
+  Widget _buildLineOpacityOptions(
+    AppTheme theme,
+    SettingsProvider settingsProvider,
+  ) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: settingsProvider.lineOpacities.map((opacity) {
-        final isSelected = (opacity - settingsProvider.lineOpacity).abs() < 0.01;
+        final isSelected =
+            (opacity - settingsProvider.lineOpacity).abs() < 0.01;
         return InkWell(
           onTap: () => settingsProvider.setLineOpacity(opacity),
           borderRadius: BorderRadius.circular(20),
@@ -866,7 +1004,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: isSelected ? theme.primaryColor : theme.backgroundColor,
               borderRadius: BorderRadius.circular(100),
               border: Border.all(
-                color: isSelected ? theme.primaryColor : theme.secondaryTextColor.withValues(alpha: 0.3),
+                color: isSelected
+                    ? theme.primaryColor
+                    : theme.secondaryTextColor.withValues(alpha: 0.3),
               ),
             ),
             child: Text(
